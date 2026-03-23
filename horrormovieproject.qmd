@@ -1,0 +1,215 @@
+---
+title: "The Role of Language in the Perception and Success of Horror Movies"
+format: html
+author: "Victoria Liu"
+embed-resources: true
+---
+```{r}
+#| label: setup
+#| include: false
+#| message: false
+
+library(tidyverse)
+library(gt)
+library(ggplot2)
+
+horror_movies <- readr::read_csv("horror_movies.csv")
+```
+
+#### Introduction
+
+The history of horror originates from myths, religion, and early literature. Famous stories like *The Epic of Gilgamesh*, biblical plagues, and old ghost folklore contained elements such as monsters, supernatural forces, or even death. Overtime, these themes became a central idea in today's horror films.[^1] 
+
+As these stories were adapted in modern horror films, they carried many cultural themes and traditions with them. Michael Rulon, a professor at the University of North Carolina-Chapel, explains that different countries express fear in different ways through cinema.[^2] The origin of a film is also tied to the structure of its film industry, which can vary significantly across regions and influence its commercial success. This project explores the question, **how does the origin of a horror film influence audience perception and commercial success?**
+
+*For the purpose of this exploratory paper, a film’s original language is used as a proxy for its origin, as language typically reflects the country or region in which the film was produced.*
+
+[^1]: [History of Horror Films](https://en.wikipedia.org/wiki/History_of_horror_films)  
+
+[^2]: [Michael Rulon: Horror Around the World](https://news.nau.edu/horror-around-the-world/)
+
+#### Section 1. Comparing Western and East Asian Horror Film Styles
+
+Western and East Asian horror films often approach fear in different ways. Many Western Horror movies rely on jump scares, gore, and dramatic visual effects to create shock and excitement. In contrast, East Asian horror tends to focus more on build up or unsettling ideas with psychological tension and supernatural folklore.[^3]
+
+[^3]: [Asian Horror vs Western Horror](https://medium.com/@tina2000nina/why-asian-horror-movies-are-more-terrifying-than-western-ones-91d6af9cf29d)
+
+
+
+```{r}
+# filters the dataset to have more reliable ratings and sample sizes
+
+language_ratings <- horror_movies %>%
+  filter(!is.na(vote_average), vote_count >= 50) %>%
+  # filters out the movies that has NAs and less than 50 votes to ensure that the ratings have a reliable sample size
+  summarise(avg_rating = mean(vote_average, na.rm = TRUE), 
+            n = n(), 
+            .by = original_language) %>%
+  filter(n >= 10) %>%
+  # filters out languages that have less than 10 movies to ensure there are enough movies per language to make a fair and reliable comparison.
+  arrange(desc(avg_rating)) %>%
+  mutate(original_language = fct_reorder(original_language, avg_rating))
+```
+
+
+```{r}
+# top 10 languages with the highest average horror movie ratings
+
+language_ratings %>%
+  mutate(original_language = recode(original_language,
+    "ko" = "Korean",
+    "ja" = "Japanese",
+    "th" = "Thai",
+    "ru" = "Russian",
+    "es" = "Spanish",
+    "cn" = "Chinese",
+    "fr" = "French",
+    "it" = "Italian",
+    "no" = "Norwegian",
+    "de" = "German"
+  )) %>%
+  slice_head(n = 10) %>%
+  ggplot(aes(x = original_language, 
+             y = avg_rating)) +
+  geom_col(fill = "lightgreen") +
+  coord_flip() +
+  labs(title = "Graph 1. Top 10 Languages with Highest Rated Horror Movies",
+       x = "Language", y = "Average Rating") +
+  theme_minimal()
+```
+East Asian horror, specifically, Korean, Japanese, then Thai horror films tend to have some of the highest average ratings, while Western horror have slightly lower ratings. The stronger emphasis on psychological storytelling and cultural mythology from Asian horror may lead audiences to perceive these films to be scarier or more memorable, creating higher ratings. In contrast, Western horror may be ranked lower due to having more graphic or explicit content which may not appeal to viewers.[^4]
+
+[^4]: [Reddit Thread: Are horror movies rated lower? ](https://www.reddit.com/r/horror/comments/wz2xjj/do_horror_movies_generally_get_rated_lower/#:~:text=It's%20a%20niche%20genre.,most%20horror%20fans%20agree%20on.&text=Particularly%20'epic'%20war%20films.,and%20See%20again%20over%201917.&text=I%20think%20it's%20because%20it's,'wasn't%20scary'.&text=Always%20been%2C%20but%20I%20don,care%2C%20horror%20is%20my%20life.&text=Yes.)
+
+#### Section 2. Comparing Western and East Asian Horror Film Industries
+
+The film industries between Western and Asian are also very different. Western film industries, specifically the U.S with Hollywood, has been the world's major commercial producer for over 100 years. According to Allen. J Scott from YaleGlobal Online[^5], the U.S generated $20 billion in film revenue, where Hollywood had been responsible for taking 60% of it. With advanced technology, and a large network for actors, directors and agencies, they can operate more efficiently and at a larger scale. 
+
+In contrast, other regions have a smaller film industry creating a major disadvantage compared to Hollywood. Many Asian film industries are more regionally focused and lack comparable global distribution infrastructure, limiting their international reach.[^5]
+
+[^5]: [Hollywood's Era of Globalization ](https://archive-yaleglobal.yale.edu/content/hollywood-era-globalization#:~:text=From%20the%20early%20years%20of,every%20corner%20of%20the%20world.)
+
+```{r}
+#individual movie rows for qualifying languages
+
+language_movies <- horror_movies %>% 
+  filter(revenue > 0, 
+         vote_count >= 50) %>%
+  summarise(n = n(), .by = original_language) %>%
+  filter(n >= 10) %>%
+  left_join(horror_movies, by = "original_language") %>%
+  filter(revenue > 0) %>%
+  mutate(original_language = recode(original_language,
+    "ko" = "Korean",
+    "ja" = "Japanese",
+    "ru" = "Russian",
+    "es" = "Spanish",
+    "fr" = "French",
+    "it" = "Italian",
+    "en" = "English"
+  )) %>% 
+  mutate(original_language = fct_reorder(original_language, revenue))
+
+```
+
+```{r}
+# median revenue per language. I chose median vs average because the film revenue isn't evenly distributed, so the median takes out outliers
+
+genre_avg <- language_movies %>%
+  summarise(median_revenue = median(revenue), 
+            .by = original_language)
+```
+
+```{r}
+# top 10 languages by revenue
+top_languages_revenue <- language_movies %>%
+  left_join(genre_avg, by = "original_language") %>%
+  mutate(original_language = fct_reorder(original_language, median_revenue)) %>%
+  summarise(avg_rev = mean(median_revenue), .by = original_language) %>%
+  arrange(desc(avg_rev)) %>%
+  slice_head(n = 10)
+```
+
+```{r}
+ggplot(top_languages_revenue, 
+       aes(x = original_language, 
+           y = avg_rev)) +
+  geom_col(color = "darkgreen", 
+           fill = "lightgreen") +
+  scale_y_continuous(labels = scales::dollar) + #formats revenues in dollar amount instead of scientific notation to read clearer  
+  labs(title = "Graph 2. Top 10 Languages by Horror Movie Revenue",
+       x = "Language", y = "Median Revenue") +
+  theme_minimal()
+```
+
+Though American horror films are not ranked in the top 10 highest rankings (reference Graph 1.), they have a significantly higher median revenue compare to other languages. As a result, the U.S and Hollywood’s control over the industry impacts the financial outcomes which allow their films to dominate the global box office revenue.
+
+It is also important to notice that Japanese horror movies are somewhat closely ranked under English horror films. We will explore this a little closer. 
+
+```{r}
+# gt table of top 10 highest grossing horror movies
+
+horror_movies %>%
+  filter(revenue > 0) %>%
+  arrange(desc(revenue)) %>%
+  slice_head(n = 10) %>%
+  select(title, original_language, revenue) %>%
+  mutate(rank = row_number()) %>%
+  gt() %>% 
+  tab_header(
+    title = "Table 1. Top 10 Overall Highest Grossing Horror Movies"
+  ) %>%
+  fmt_currency(columns = revenue, currency = "USD") # converts revenue into USD to look more appealing
+```
+
+The top ten highest grossing horror films globally were produced in English, demonstrating the market power Hollywood has over other origins.
+
+```{r}
+
+#gt plot of top 3 highest grossing japanese horror movies.
+
+horror_movies %>%
+  filter(revenue > 0, original_language == "ja") %>%
+  arrange(desc(revenue)) %>%
+  slice_head(n = 3) %>%
+  select(title, original_language, revenue) %>%
+  mutate(rank = row_number()) %>%
+  gt() %>%
+  tab_header(
+    title = "Table 2. Top 3 Highest Grossing Japanese Horror Movies"
+  ) %>%
+  fmt_currency(columns = revenue, currency = "USD")
+```
+
+In Graph 2, Japanese horror films generate a lower median revenue but remain the closest competitors among non-English productions. For example, One Cut of the Dead earned approximately $200 million, which, while lower than top Hollywood films, is still substantial.
+
+The highly rated and relatively high revenue for Japanese and Korean films suggests a shift in the global market. Streaming platforms such as Netflix, Prime Video, and Disney+ have expanded with Asian content, increasing exposure to international audiences, particularly in the United States.[^6] As a result, Japanese and Korean productions are increasingly becoming more competitive for the U.S.
+
+[^6]: [Asian Production Gain Ground in the USA ](https://www.fabricdata.com/asian-productions-gain-ground-in-the-usa)
+
+Taking a closer look at the revenue distribution, we can see how revenue varies within each language group. 
+
+```{r}
+# revenue distribution boxplot
+
+ggplot(language_movies, 
+       aes(x = original_language, 
+           y = revenue, 
+           fill = original_language)) +
+  geom_boxplot() +
+  scale_fill_brewer(palette = "Dark2") +
+  labs(title = "Graph 3. Revenue Distribution by Language",
+       x = "Language", y = "Revenue") +
+  scale_y_continuous(labels = scales::dollar) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+The wider distribution and extreme outliers in English-language films suggest a “high-risk, high-reward” market. Japanese horror films cluster at lower ratings showing a more concentrated distribution, indicating more consistent but limited commercial reach. This suggests that language and cultural origin of a horror film may limit a film's market reach. 
+
+#### Conclusion
+
+In conclusion, the origin of a horror film impacts both audience perception and commercial success. East Asian horror films tend to receiver higher ratings and show a strong potential for commercial growth. This is from using psychological and cultural storytelling, which can resonate with a more dedicated viewership, as well as the growing accessibility provided by streaming platforms. In contrast, English horror films dominate in terms of revenue with a mainstream appeal, mostly due to their large scale in the Western film industry. 
+
+*Note: This exploratory project uses Tanya Shapiro's horror movie data base, from the 2022-11-01 edition of the Tidy Tuesday Challenge.[^7]*
+
+[^7]: [Tidy Tuesday Challenge ](https://github.com/rfordatascience/tidytuesday/tree/main/data/2022/2022-11-01)
